@@ -1,12 +1,19 @@
 // Polls the build status and updates the progress bar until the APK is ready.
+// On the ready page it starts the APK download once, right after a build.
 (() => {
+  const ready = document.querySelector(".ready[data-autostart]");
+  if (ready) {
+    history.replaceState(null, "", location.pathname); // a reload must not download again
+    window.location.assign(ready.dataset.autostart);
+    return;
+  }
+
   const root = document.querySelector(".build");
   if (!root) return;
   const { pkg, code } = root.dataset;
   const progress = root.querySelector(".progress");
   const bar = root.querySelector(".progress-bar");
   const status = root.querySelector(".build-status");
-  const done = root.querySelector(".build-done");
   const failed = root.querySelector(".build-failed");
 
   const mb = (n) => (n / 1e6).toFixed(1);
@@ -47,8 +54,7 @@
         break;
       case "done":
         show(100, "Ready.");
-        done.hidden = false;
-        window.location.assign(`/file/${pkg}/${code}`);
+        window.location.replace(`/build/${pkg}/${code}?fresh=1`);
         return;
       case "failed":
         show(0, "The build stopped.");

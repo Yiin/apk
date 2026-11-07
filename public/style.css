@@ -202,6 +202,14 @@ form.inline { display: inline; margin: 0; }
 .build-status { color: var(--muted); font-variant-numeric: tabular-nums; }
 .build-done, .build-failed { margin-top: 20px; }
 
+.files { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.files li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.files .btn { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 0.85rem ui-monospace, monospace; }
+.steps { padding-left: 1.4rem; }
+.steps li { margin: 8px 0; }
+.steps code, .ready code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
+
 .prose { max-width: 65ch; }
 .prose li { margin: 6px 0; }
 .fingerprint { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }

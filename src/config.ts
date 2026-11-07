@@ -10,7 +10,9 @@ export const config = {
   workDir: join(dataDir, "work"),
   keyDir: join(dataDir, "keys"),
   cacheMaxBytes: gb("CACHE_MAX_GB", 8),
-  maxBundleBytes: gb("MAX_BUNDLE_GB", 1.5),
+  maxBundleBytes: gb("MAX_BUNDLE_GB", 4),
+  // Builds refuse to start when they would leave less than this free on the disk.
+  minFreeBytes: gb("MIN_FREE_GB", 8),
   maxQueue: Number(process.env.MAX_QUEUE ?? 8),
   buildsPerHour: Number(process.env.BUILDS_PER_HOUR ?? 6),
   javaHeap: process.env.JAVA_HEAP ?? "1500m",

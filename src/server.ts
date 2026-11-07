@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import * as apkpure from "./apkpure";
 import { NotFoundError, PKG_RE } from "./apkpure";
-import { cachedFile, jobState, QueueFullError, startBuild } from "./builder";
+import { apkPath, cachedBuild, jobState, obbPath, QueueFullError, startBuild } from "./builder";
 import { config } from "./config";
 import { signerFingerprint, signerReady } from "./signer";
 import * as views from "./views";
@@ -85,22 +85,12 @@ async function proxyApk(req: Request, pkg: string, code: string): Promise<Respon
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 
-async function serveBuilt(req: Request, pkg: string, code: string): Promise<Response> {
-  const path = await cachedFile(pkg, code);
-  if (!path) return redirect(`/build/${pkg}/${code}`);
+// Serves a file from the build cache, with Range support so big downloads can resume.
+function serveFile(req: Request, path: string, name: string, contentType: string): Response {
   const file = Bun.file(path);
   const size = file.size;
-
-  let name = `${pkg}-${code}.apk`;
-  try {
-    const { details, version } = await findVersion(pkg, code);
-    name = apkFilename(details.title, version.name);
-  } catch {
-    // The name is cosmetic. Serve the file even when apkpure is down.
-  }
-
   const headers = new Headers({
-    "content-type": "application/vnd.android.package-archive",
+    "content-type": contentType,
     "content-disposition": contentDisposition(name),
     "accept-ranges": "bytes",
     "cache-control": "private, no-store",
@@ -121,6 +111,25 @@ async function serveBuilt(req: Request, pkg: string, code: string): Promise<Resp
   }
   headers.set("content-length", String(size));
   return new Response(file, { headers });
+}
+
+async function serveBuiltApk(req: Request, pkg: string, code: string): Promise<Response> {
+  if (!(await cachedBuild(pkg, code))) return redirect(`/build/${pkg}/${code}`);
+  let name = `${pkg}-${code}.apk`;
+  try {
+    const { details, version } = await findVersion(pkg, code);
+    name = apkFilename(details.title, version.name);
+  } catch {
+    // The name is cosmetic. Serve the file even when apkpure is down.
+  }
+  return serveFile(req, apkPath(pkg, code), name, "application/vnd.android.package-archive");
+}
+
+async function serveObb(req: Request, pkg: string, code: string, name: string): Promise<Response> {
+  const build = await cachedBuild(pkg, code);
+  // Only names the build recorded, so the path can never leave the build folder.
+  if (!build?.obb.some((o) => o.name === name)) return html(views.errorPage(404, "This file does not exist."), 404);
+  return serveFile(req, obbPath(pkg, code, name), name, "application/octet-stream");
 }
 
 async function staticFile(name: string): Promise<Response | null> {
@@ -161,7 +170,7 @@ async function handle(req: Request, server: Bun.Server<undefined>): Promise<Resp
 
   if (route === "build" && versionRoute) {
     if (req.method === "POST") {
-      if (await cachedFile(pkg, code)) return redirect(`/file/${pkg}/${code}`);
+      if (await cachedBuild(pkg, code)) return redirect(`/build/${pkg}/${code}?fresh=1`);
       const state = jobState(pkg, code);
       if (!state || state.step === "failed") {
         await findVersion(pkg, code); // only versions apkpure lists
@@ -179,6 +188,11 @@ async function handle(req: Request, server: Bun.Server<undefined>): Promise<Resp
     }
     if (req.method === "GET") {
       const { details, version } = await findVersion(pkg, code);
+      const build = await cachedBuild(pkg, code);
+      if (build) {
+        const fresh = url.searchParams.has("fresh");
+        return html(views.readyPage(pkg, code, details.title, version.name, build, fresh));
+      }
       return html(views.buildPage(pkg, code, details.title, version.name));
     }
   }
@@ -186,11 +200,14 @@ async function handle(req: Request, server: Bun.Server<undefined>): Promise<Resp
   if (req.method === "GET" && route === "api" && pkg === "build" && parts.length === 4) {
     const [, , p, c] = parts as [string, string, string, string];
     if (!PKG_RE.test(p) || !/^\d{1,12}$/.test(c)) return Response.json({ error: "bad request" }, { status: 400 });
-    if (await cachedFile(p, c)) return Response.json({ step: "done" });
+    if (await cachedBuild(p, c)) return Response.json({ step: "done" });
     return Response.json(jobState(p, c) ?? { step: "none" }, { headers: { "cache-control": "no-store" } });
   }
 
-  if ((req.method === "GET" || req.method === "HEAD") && route === "file" && versionRoute) return serveBuilt(req, pkg, code);
+  if ((req.method === "GET" || req.method === "HEAD") && route === "file" && PKG_RE.test(pkg) && /^\d{1,12}$/.test(code)) {
+    if (parts.length === 3) return serveBuiltApk(req, pkg, code);
+    if (parts.length === 5 && parts[3] === "obb" && /^[\w.-]+\.obb$/.test(parts[4]!)) return serveObb(req, pkg, code, parts[4]!);
+  }
 
   if (req.method === "GET" && url.pathname === "/about") return html(views.aboutPage(signerFingerprint));
   if (req.method === "GET" && url.pathname === "/healthz") return new Response("ok");

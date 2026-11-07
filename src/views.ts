@@ -1,4 +1,5 @@
 import type { AppDetails, SearchHit, Version } from "./apkpure";
+import type { BuildResult } from "./builder";
 
 export function esc(value: unknown): string {
   return String(value ?? "")
@@ -118,7 +119,7 @@ function downloadControl(pkg: string, v: Version, primary: boolean): string {
 function kindBadge(v: Version): string {
   return versionKind(v) === "apk"
     ? `<span class="badge badge-ok" title="The file is the original APK, signed by the developer">${icon("check", 14)} Original</span>`
-    : `<span class="badge badge-build" title="The server merges the split bundle into one APK and signs it again">${icon("layers", 14)} Rebuilt</span>`;
+    : `<span class="badge badge-build" title="The server turns the bundle into one APK">${icon("layers", 14)} Bundle</span>`;
 }
 
 export function appPage(d: AppDetails): string {
@@ -139,7 +140,7 @@ export function appPage(d: AppDetails): string {
   const note = latest
     ? versionKind(latest) === "apk"
       ? `<p class="note note-ok">${icon("check", 16)} <span>The latest version is a plain APK. You get the developer's original file.</span></p>`
-      : `<p class="note">${icon("layers", 16)} <span>The latest version ships as a split bundle. The server merges it into one APK and signs it with the <a href="/about#signature">apk.yiin.lt key</a>. Uninstall a Play Store copy first.</span></p>`
+      : `<p class="note">${icon("layers", 16)} <span>The latest version ships as a bundle. The server turns it into one APK for you. <a href="/about">How it works</a></span></p>`
     : `<p class="note">${icon("alert", 16)} <span>apkpure lists no downloadable versions for this app.</span></p>`;
 
   return layout(
@@ -181,17 +182,55 @@ export function buildPage(pkg: string, code: string, title: string, version: str
     `<a class="back" href="/app/${esc(pkg)}">${icon("back", 16)} ${esc(title)}</a>
 <section class="build" data-pkg="${esc(pkg)}" data-code="${esc(code)}">
   <h1 class="page-title">Building one APK</h1>
-  <p class="muted">${esc(title)} ${esc(version)}. The server downloads the bundle, merges the parts, and signs the result. Keep this page open.</p>
+  <p class="muted">${esc(title)} ${esc(version)}. The server downloads the bundle and turns it into one APK. Big games take a few minutes. Keep this page open.</p>
   <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Build progress"><div class="progress-bar"></div></div>
   <p class="build-status" aria-live="polite">Starting…</p>
-  <div class="build-done" hidden>
-    <a class="btn btn-primary btn-lg" href="/file/${esc(pkg)}/${esc(code)}">${icon("download")} Download APK</a>
-    <p class="note">${icon("shield", 16)} <span>This APK is signed with the <a href="/about#signature">apk.yiin.lt key</a>, not the developer's key. Uninstall a Play Store copy first.</span></p>
-  </div>
   <div class="build-failed" hidden>
     <p class="note note-bad" role="alert">${icon("alert", 16)} <span><span class="reason"></span></span></p>
     <form method="post" action="/build/${esc(pkg)}/${esc(code)}"><button class="btn btn-ghost" type="submit">Try again</button></form>
   </div>
+</section>
+<script src="/build.js" defer></script>`,
+  );
+}
+
+const fmt = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : `${(n / 1e6).toFixed(1)} MB`);
+
+export function readyPage(pkg: string, code: string, title: string, version: string, build: BuildResult, autostart: boolean): string {
+  const signature =
+    build.signature === "original"
+      ? `<p class="note note-ok">${icon("check", 16)} <span>This is the developer's original APK. It installs over a Play Store copy and updates normally.</span></p>`
+      : `<p class="note">${icon("shield", 16)} <span>The server merged the bundle and signed the APK with the <a href="/about#signature">apk.yiin.lt key</a>. Uninstall a Play Store copy first.</span></p>`;
+
+  const obb = build.obb.length
+    ? `<h2>This game also needs its data files</h2>
+<p class="muted">Android lets no app on the phone put these files in place, so this step needs a computer and a USB cable. You do it once per game version.</p>
+<ul class="files">${build.obb
+        .map(
+          (f) => `<li><a class="btn btn-ghost" href="/file/${esc(pkg)}/${esc(code)}/obb/${esc(f.name)}" rel="nofollow">${icon("download", 18)} <span class="file-name">${esc(f.name)}</span></a><span class="muted">${fmt(f.size)}</span></li>`,
+        )
+        .join("")}</ul>
+<ol class="steps">
+  <li>Install the APK on your phone. Do not open the game yet.</li>
+  <li>Download the data files above on a computer.</li>
+  <li>Connect the phone to the computer with a USB cable. On the phone, pick <strong>File transfer</strong>.</li>
+  <li>On the computer, open the phone's internal storage, then <code>Android</code> › <code>obb</code>. Make a folder named <code>${esc(pkg)}</code> if it is not there.</li>
+  <li>Copy the data files into that folder. Then start the game.</li>
+</ol>
+<p class="muted">On Android 10 and older, a file manager on the phone can do steps 3 to 5.</p>`
+    : "";
+
+  return layout(
+    `${title} ${version} · apk.yiin.lt`,
+    `<a class="back" href="/app/${esc(pkg)}">${icon("back", 16)} ${esc(title)}</a>
+<section class="ready"${autostart ? ` data-autostart="/file/${esc(pkg)}/${esc(code)}"` : ""}>
+  <h1 class="page-title">${esc(title)} ${esc(version)} is ready</h1>
+  <div class="cta">
+    <a class="btn btn-primary btn-lg" href="/file/${esc(pkg)}/${esc(code)}" rel="nofollow">${icon("download")} Download APK</a>
+    <span class="muted">${fmt(build.apkSize)}</span>
+  </div>
+  ${signature}
+  ${obb}
 </section>
 <script src="/build.js" defer></script>`,
   );
@@ -205,16 +244,16 @@ export function aboutPage(fingerprint: string): string {
 <p>apk.yiin.lt is a plain front end for apkpure.net. It reads app pages and download links from apkpure and shows them without ads.</p>
 <h2>Plain APKs</h2>
 <p>When apkpure has a plain APK for a version, the server passes the file through unchanged. It keeps the developer's signature, so it installs over a Play Store copy and updates normally.</p>
-<h2 id="signature">Rebuilt APKs</h2>
-<p>Many apps only ship as split bundles (XAPK): a base APK plus parts for each CPU type, screen density and language. Android cannot install a bundle from a file manager. The server merges every part into one universal APK with <a href="https://github.com/REAndroid/APKEditor">APKEditor</a>, then signs it.</p>
-<p>A merge changes the file, so the developer's signature no longer fits. The server signs rebuilt APKs with its own key:</p>
+<h2 id="signature">Bundles</h2>
+<p>Many apps only ship as bundles (XAPK). A bundle holds a base APK plus parts for CPU type, screen density, language and game assets. Android cannot install a bundle from a file manager.</p>
+<p>When a bundle holds one APK, the server hands out that APK unchanged, with the developer's signature. When it holds several, the server merges them into one APK with <a href="https://github.com/REAndroid/APKEditor">APKEditor</a>. A merge changes the file, so the developer's signature no longer fits. The server signs merged APKs with its own key:</p>
 <p class="fingerprint"><span class="muted">SHA-256</span><br><code>${esc(fingerprint || "not ready")}</code></p>
 <p>What this means for you:</p>
 <ul>
 <li>Uninstall a Play Store copy first. Android refuses to replace an app that carries a different signature.</li>
-<li>Later rebuilt versions use the same key, so they install over each other.</li>
-<li>The Play Store cannot update a rebuilt app. Come back here for new versions.</li>
-<li>Games that need extra OBB data cannot become one APK. The server says so.</li>
+<li>Later merged versions use the same key, so they install over each other.</li>
+<li>The Play Store cannot update a merged app. Come back here for new versions.</li>
+<li>Some older games keep their data in separate OBB files. The server hands out those files too, with steps to copy them from a computer.</li>
 </ul>
 <h2>Privacy</h2>
 <p>The site sets no cookies and runs no analytics. Icons and screenshots load from apkpure's image server.</p>
