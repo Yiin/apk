@@ -2,7 +2,7 @@ FROM oven/bun:1-debian
 
 # Java runs APKEditor; apksigner, zipalign and unzip handle the rest of the build.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends openjdk-17-jre-headless apksigner zipalign unzip ca-certificates curl \
+ && apt-get install -y --no-install-recommends openjdk-21-jre-headless apksigner zipalign unzip ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
 ARG APKEDITOR_VERSION=1.4.9
