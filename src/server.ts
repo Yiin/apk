@@ -238,4 +238,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`apk.yiin.lt on :${server.port}`);
+console.log(`apk.yiin.dev on :${server.port}`);

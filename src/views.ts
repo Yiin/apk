@@ -49,7 +49,7 @@ export function layout(title: string, body: string, opts: { q?: string; home?: b
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-${opts.home ? "" : `<header class="top"><div class="wrap top-inner"><a class="brand" href="/">apk<span>.yiin.lt</span></a>${searchForm(opts.q)}</div></header>`}
+${opts.home ? "" : `<header class="top"><div class="wrap top-inner"><a class="brand" href="/">apk<span>.yiin.dev</span></a>${searchForm(opts.q)}</div></header>`}
 <main id="main" class="wrap">
 ${body}
 </main>
@@ -62,9 +62,9 @@ ${body}
 
 export function homePage(): string {
   return layout(
-    "apk.yiin.lt",
+    "apk.yiin.dev",
     `<section class="hero">
-  <h1>apk<span>.yiin.lt</span></h1>
+  <h1>apk<span>.yiin.dev</span></h1>
   <p class="lede">Search Android apps and get one APK file you can install directly.</p>
   ${searchForm("", true)}
   <ul class="points">
@@ -98,7 +98,7 @@ export function searchPage(q: string, hits: SearchHit[]): string {
         )
         .join("")}</ul>`
     : `<div class="empty"><p>No apps match “${esc(q)}”.</p><p class="muted">Try a shorter name, or paste the package name from the Play Store link.</p></div>`;
-  return layout(`${q} · apk.yiin.lt`, `<h1 class="page-title">Results for “${esc(q)}”</h1>${list}`, { q });
+  return layout(`${q} · apk.yiin.dev`, `<h1 class="page-title">Results for “${esc(q)}”</h1>${list}`, { q });
 }
 
 export function versionKind(v: Version): "apk" | "bundle" {
@@ -144,7 +144,7 @@ export function appPage(d: AppDetails): string {
     : `<p class="note">${icon("alert", 16)} <span>apkpure lists no downloadable versions for this app.</span></p>`;
 
   return layout(
-    `${d.title} · apk.yiin.lt`,
+    `${d.title} · apk.yiin.dev`,
     `<section class="app-head">
   ${appIcon(d.icon, `${d.title} icon`, 96)}
   <div class="app-head-text">
@@ -178,7 +178,7 @@ ${
 
 export function buildPage(pkg: string, code: string, title: string, version: string): string {
   return layout(
-    `Building ${title} · apk.yiin.lt`,
+    `Building ${title} · apk.yiin.dev`,
     `<a class="back" href="/app/${esc(pkg)}">${icon("back", 16)} ${esc(title)}</a>
 <section class="build" data-pkg="${esc(pkg)}" data-code="${esc(code)}">
   <h1 class="page-title">Building one APK</h1>
@@ -200,7 +200,7 @@ export function readyPage(pkg: string, code: string, title: string, version: str
   const signature =
     build.signature === "original"
       ? `<p class="note note-ok">${icon("check", 16)} <span>This is the developer's original APK. It installs over a Play Store copy and updates normally.</span></p>`
-      : `<p class="note">${icon("shield", 16)} <span>The server merged the bundle and signed the APK with the <a href="/about#signature">apk.yiin.lt key</a>. Uninstall a Play Store copy first.</span></p>`;
+      : `<p class="note">${icon("shield", 16)} <span>The server merged the bundle and signed the APK with the <a href="/about#signature">apk.yiin.dev key</a>. Uninstall a Play Store copy first.</span></p>`;
 
   const obb = build.obb.length
     ? `<h2>This game also needs its data files</h2>
@@ -221,7 +221,7 @@ export function readyPage(pkg: string, code: string, title: string, version: str
     : "";
 
   return layout(
-    `${title} ${version} · apk.yiin.lt`,
+    `${title} ${version} · apk.yiin.dev`,
     `<a class="back" href="/app/${esc(pkg)}">${icon("back", 16)} ${esc(title)}</a>
 <section class="ready"${autostart ? ` data-autostart="/file/${esc(pkg)}/${esc(code)}"` : ""}>
   <h1 class="page-title">${esc(title)} ${esc(version)} is ready</h1>
@@ -238,10 +238,10 @@ export function readyPage(pkg: string, code: string, title: string, version: str
 
 export function aboutPage(fingerprint: string): string {
   return layout(
-    "How it works · apk.yiin.lt",
+    "How it works · apk.yiin.dev",
     `<article class="prose">
 <h1 class="page-title">How it works</h1>
-<p>apk.yiin.lt is a plain front end for apkpure.net. It reads app pages and download links from apkpure and shows them without ads.</p>
+<p>apk.yiin.dev is a plain front end for apkpure.net. It reads app pages and download links from apkpure and shows them without ads.</p>
 <h2>Plain APKs</h2>
 <p>When apkpure has a plain APK for a version, the server passes the file through unchanged. It keeps the developer's signature, so it installs over a Play Store copy and updates normally.</p>
 <h2 id="signature">Bundles</h2>
@@ -263,7 +263,7 @@ export function aboutPage(fingerprint: string): string {
 
 export function errorPage(status: number, message: string, q?: string): string {
   return layout(
-    `${status} · apk.yiin.lt`,
+    `${status} · apk.yiin.dev`,
     `<div class="empty"><h1 class="page-title">${status === 404 ? "Not found" : "Something went wrong"}</h1><p>${esc(message)}</p><p><a href="/">Go to search</a></p></div>`,
     { q },
   );
